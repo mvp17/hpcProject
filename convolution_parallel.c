@@ -49,7 +49,6 @@ int saveFile(ImagenData Img, char* name);
 
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
-///////Paralellize//////////////*****************************************************************************************************
 ImagenData  readImage(char* name){
     FILE *fp;
     char c;
@@ -88,7 +87,6 @@ ImagenData  readImage(char* name){
 }
 
 // This function allows us to read a kernel from a file, the kernel is represented by a 1D vector.
-///////Paralellize//////////////*****************************************************************************************************
 kernelData readKernel(char* name){
     FILE *fp;
     int i=0;
@@ -119,7 +117,6 @@ kernelData readKernel(char* name){
 
 
 // This function allows you to copy the main data from the original image data structure into a second structure.
-///////Paralellize//////////////*****************************************************************************************************
 ImagenData duplicateImageData(ImagenData src){
     char c;
     char comment[300];
@@ -128,7 +125,6 @@ ImagenData duplicateImageData(ImagenData src){
     // We reserve memory for the target Image structure
     ImagenData dst=(ImagenData) malloc(sizeof(struct imagenppm));
     //Magic number is copied
-
     dst->P=src->P;
     // Comment is copied
     dst->comment = calloc(strlen(src->comment),sizeof(char));
@@ -150,7 +146,6 @@ ImagenData duplicateImageData(ImagenData src){
 }
 
 // This function stores the new Image data in a ppm file.
-///////Paralellize//////////////*****************************************************************************************************
 int saveFile(ImagenData  Img, char* name){
     int i,j;
     FILE *fp;
@@ -162,12 +157,9 @@ int saveFile(ImagenData  Img, char* name){
     //The magic number, comment, width, height and maximum color are written to the file
     fprintf(fp,"P%d\n%s\n%d %d\n%d\n",Img->P,Img->comment,Img->width,Img->height,Img->maxcolor);
     //Pixels are written
-    #pragma omp parallel for schedule(dynamic)
-    {
     for(i=0;i<Img->width*Img->height;i++){
             fprintf(fp,"%d %d %d ",Img->R[i],Img->G[i],Img->B[i]);
             if (i%Img->height==0) fprintf(fp,"\n");
-    }
     }
     fclose(fp);
     return 0;
@@ -209,12 +201,11 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     inPtr = inPtr2 = &in[dataSizeX * kCenterY + kCenterX];  // note that  it is shifted (kCenterX, kCenterY),
     outPtr = out;
     kPtr = kernel;
-//////////////////////////////Parallelization Section//////////////////////////////////////////////////////////
+
+    #pragma omp parallel shared(dataSizeY, dataSizeX, kCenterX, kCenterY, kernelSizeX, kernelSizeY, sum) private(i, j, rowMax, rowMin, colMax, colMin, m, n, inPtr, kPtr, outPtr, inPtr2)
+    {
+        #pragma omp for schedule(dynamic, 2)
     // start convolution
-    #pragma omp parallel shared(dataSizeY, dataSizeX, kCenterY, kCenterX) private(i, j, rowMax, rowMin, colMax, colMin, kPtr, inPtr, outPtr)
-    {
-    #pragma omp for schedule(dynamic)
-    {
     for(i= 0; i < dataSizeY; ++i)                   // number of rows
     {
         // compute the range of convolution, the current row of kernel should be between these
@@ -250,7 +241,6 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
 
                 inPtr -= dataSizeX;                 // move input data 1 raw up
             }
-//////////////////////////////Parallelization Section//////////////////////////////////////////////////////////
 
             // convert integer number
             if(sum >= 0) *outPtr = (int)(sum + 0.5f);
@@ -266,17 +256,12 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
         }
     }
     }
-    
-    }
 
     return 0;
 }
 
-/////********MAIN************////////////
 int main(int argc, char **argv)
 {
-    double time_spent, begin, end;
-
     int i=0,j=0,k=0;
 
     if(argc != 4)
@@ -294,42 +279,31 @@ int main(int argc, char **argv)
     struct timeval tim;
     gettimeofday(&tim, NULL);
     double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
-    //begin = omp_get_wtime();
 
-    #pragma omp parallel
-    {
-            //Read the source image.
-            ImagenData  source=NULL, output=NULL;
-            if ( (source=readImage(argv[1]))==NULL) {
-                return -1;
-            }
-        
-    
+    //Read the source image.
+    ImagenData  source=NULL, output=NULL;
+    if ( (source=readImage(argv[1]))==NULL) {
+        return -1;
+    }
 
     gettimeofday(&tim, NULL);
     double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-        
-            // Duplicate the image in a new structure that will contain the output image
-            if ( (output=duplicateImageData(source)) == NULL) {
-                return -1;
-            }
-        
-    
+    // Duplicate the image in a new structure that will contain the output image
+    if ( (output=duplicateImageData(source)) == NULL) {
+        return -1;
+    }
 
     gettimeofday(&tim, NULL);
     double t3=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-        
-            //Kernel reading
-            kernelData kern=NULL;
-            if ( (kern = readKernel(argv[2]))==NULL) {
-                free(source);
-                free(output);
-                return -1;
-            }
-        
-    
+    //Kernel reading
+    kernelData kern=NULL;
+    if ( (kern = readKernel(argv[2]))==NULL) {
+        free(source);
+        free(output);
+        return -1;
+    }
 
     gettimeofday(&tim, NULL);
     double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -363,6 +337,5 @@ int main(int argc, char **argv)
     printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
     printf("%.6lf seconds elapsed\n", t6-t1);
 
-    }
     return 0;
 }
