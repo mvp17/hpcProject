@@ -16,8 +16,10 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <omp.h>
+#include <unistd.h>
 //OSX
-#include "/usr/local/opt/libomp/include/omp.h"
+//#include "/usr/local/opt/libomp/include/omp.h"
 
 // Structure for storing the content of an image.
 struct imagenppm{
@@ -201,10 +203,13 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     inPtr = inPtr2 = &in[dataSizeX * kCenterY + kCenterX];  // note that  it is shifted (kCenterX, kCenterY),
     outPtr = out;
     kPtr = kernel;
-
-    #pragma omp parallel shared(dataSizeY, dataSizeX, kCenterX, kCenterY, kernelSizeX, kernelSizeY, sum) private(i, j, rowMax, rowMin, colMax, colMin, m, n, inPtr, kPtr, outPtr, inPtr2)
+    
+    #pragma omp parallel num_threads(3) private(i, j, rowMax, rowMin, colMax, colMin, m, n)
     {
-        #pragma omp for schedule(dynamic, 2)
+        printf("&&&new / inPtr:%ls, inPtr2:%ls, outPtr:%ls,\n", inPtr, inPtr2, outPtr);
+        //printf("max thread : %d\n", omp_get_thread_num());
+        //#pragma omp for schedule(dynamic, 2)
+        
     // start convolution
     for(i= 0; i < dataSizeY; ++i)                   // number of rows
     {
@@ -230,8 +235,10 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
                     for(n = 0; n < kernelSizeX; ++n)
                     {
                         // check the boundary of array
-                        if(n <= colMax && n > colMin)
+                        if(n <= colMax && n > colMin){
+                            //#pragma omp critical
                             sum += *(inPtr - n) * *kPtr;
+                        }
 
                         ++kPtr;                     // next kernel
                     }
@@ -249,12 +256,15 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
             else *outPtr = (int)(sum - 0.5f);
             // For using with a text editor that read ppm images like libreoffice or others...
             // else *outPtr = 0;
+            // printf("output ptr : %ld ", outPtr-out);
+            // printf("i:%d, j:%d, threadnum :%d , outPtr : %d\n, ", i,j,omp_get_thread_num(), *outPtr);
+            // sleep(1);
 
             kPtr = kernel;                          // reset kernel to (0,0)
             inPtr = ++inPtr2;                       // next input
             ++outPtr;                               // next output
         }
-    }
+       }
     }
 
     return 0;
@@ -310,7 +320,7 @@ int main(int argc, char **argv)
 
     convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
     convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    //convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
 
     gettimeofday(&tim, NULL);
     double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
