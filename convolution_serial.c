@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 
     convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
     convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    //convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
 
     gettimeofday(&tim, NULL);
     double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
