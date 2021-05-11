@@ -205,7 +205,7 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     kPtr = kernel;
     #pragma omp parallel private(i,j,m,n,rowMax, rowMin, colMin, colMax, sum)
     {   
-        #pragma omp for schedule(guided,4)
+        #pragma omp for schedule(guided,200)
     for(i= 0; i < dataSizeY; ++i)                   // number of rows
     {
         // compute the range of convolution, the current row of kernel should be between these
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
     gettimeofday(&tim, NULL);
     double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
     
-    #pragma omp parallel sections num_threads(4)
+    #pragma omp parallel sections num_threads(2)
     {
         #pragma omp section
             convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
