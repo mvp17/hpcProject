@@ -1,0 +1,21 @@
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+Image: /share/apps/files/convolution/images/im02.ppm
+SizeX : 600
+SizeY : 400
+0.079417 seconds elapsed for Reading image file.
+0.001281 seconds elapsed for copying image structure.
+0.000156 seconds elapsed for Reading kernel matrix.
+0.068256 seconds elapsed for make the convolution.
+0.044355 seconds elapsed for writing the resulting image.
+0.193465 seconds elapsed
