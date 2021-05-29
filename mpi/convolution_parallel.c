@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 #include <mpi.h>
 
 // Structure for storing the content of an image.
@@ -45,6 +46,19 @@ kernelData readKernel(char* name);
 ImagenData duplicateImageData(ImagenData src);
 int convolve2D(int*, int*, int, int, float*, int, int);
 int saveFile(ImagenData Img, char* name);
+ImagenData joinOutputs(ImagenData outputR, ImagenData outputG, ImagenData outputB);
+
+
+ImagenData joinOutputs(ImagenData outputR, ImagenData outputG, ImagenData outputB){
+
+    ImagenData Img = NULL;
+    Img->R = outputR->R;
+    Img->G = outputG->G;
+    Img->B = outputB->B;
+
+    return Img;
+
+}
 
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
@@ -313,8 +327,7 @@ int main(int argc, char **argv){
     
     MPI_Type_create_struct(3, lengths1, displacements1, types1, &MKernel);
     MPI_Type_commit(&MKernel);
-
-
+    
     if (rank == 0)
     {
     
@@ -331,8 +344,6 @@ int main(int argc, char **argv){
         printf("- result_file: result image path (*.ppm)\n\n");
         return -1;
     }
-
-
     
     double t1=MPI_Wtime();
 
@@ -341,9 +352,28 @@ int main(int argc, char **argv){
     if ( (source=readImage(argv[1]))==NULL) {
         return -1;
     }
-    MPI_Send(&source, 1, MImagenData, 1, 0, MPI_COMM_WORLD);
-    MPI_Send(&source, 1, MImagenData, 2, 1, MPI_COMM_WORLD);
-    MPI_Send(&source, 1, MImagenData, 3, 2, MPI_COMM_WORLD);
+    
+    MPI_Send(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     1, 
+        /*tag*/             0, 
+        /*communicator*/    MPI_COMM_WORLD);
+    MPI_Send(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     2, 
+        /*tag*/             1, 
+        /*communicator*/    MPI_COMM_WORLD);
+        MPI_Send(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     3, 
+        /*tag*/             2, 
+        /*communicator*/    MPI_COMM_WORLD);
 
     
     double t2=MPI_Wtime();
@@ -352,9 +382,27 @@ int main(int argc, char **argv){
     if ( (output=duplicateImageData(source)) == NULL) {
         return -1;
     }
-    MPI_Send(&output, 1, MImagenData, 1, 3, MPI_COMM_WORLD);
-    MPI_Send(&output, 1, MImagenData, 2, 4, MPI_COMM_WORLD);
-    MPI_Send(&output, 1, MImagenData, 3, 5, MPI_COMM_WORLD);
+    MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     1, 
+        /*tag*/             3, 
+        /*communicator*/    MPI_COMM_WORLD);
+    MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     2, 
+        /*tag*/             4, 
+        /*communicator*/    MPI_COMM_WORLD);
+        MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     3, 
+        /*tag*/             5, 
+        /*communicator*/    MPI_COMM_WORLD);
 
     
     double t3=MPI_Wtime();
@@ -366,52 +414,213 @@ int main(int argc, char **argv){
         free(output);
         return -1;
     }
-    MPI_Send(&kern, 1, MKernel, 1, 6, MPI_COMM_WORLD);
-    MPI_Send(&kern, 1, MKernel, 2, 7, MPI_COMM_WORLD);
-    MPI_Send(&kern, 1, MKernel, 3, 8, MPI_COMM_WORLD);
+    MPI_Send(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*destination*/     1, 
+        /*tag*/             6, 
+        /*communicator*/    MPI_COMM_WORLD);
+    MPI_Send(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*destination*/     2, 
+        /*tag*/             7, 
+        /*communicator*/    MPI_COMM_WORLD);
+        MPI_Send(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*destination*/     3, 
+        /*tag*/             8, 
+        /*communicator*/    MPI_COMM_WORLD);
 
     
     double t4=MPI_Wtime();
+    printf("%.6lf seconds elapsed before the convolution.\n", t4);
     }
-    
     if (rank == 1)
     {
         ImagenData source;
-        MPI_Recv(&source, 1, MImagenData, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             0, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         ImagenData output;
-        MPI_Recv(&output, 1, MImagenData, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             3, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         kernelData kern;
-        MPI_Recv(&kern, 1, MKernel, 0, 6, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*source*/          0, 
+        /*tag*/             6, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+    
         convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+
+        MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     0, 
+        /*tag*/             1, 
+        /*communicator*/    MPI_COMM_WORLD);
+    
+    // enough just one to send the source in order to free it in rank 0
+        MPI_Send(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     0, 
+        /*tag*/             2, 
+        /*communicator*/    MPI_COMM_WORLD);
+       
     }
     if (rank == 2)
     {
         ImagenData source;
-        MPI_Recv(&source, 1, MImagenData, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             1, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         ImagenData output;
-        MPI_Recv(&output, 1, MImagenData, 0, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             4, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         kernelData kern;
-        MPI_Recv(&kern, 1, MKernel, 0, 7, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*source*/          0, 
+        /*tag*/             7, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+
         convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+
+        MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     0, 
+        /*tag*/             3, 
+        /*communicator*/    MPI_COMM_WORLD);
     }
 
     if (rank == 3)
     {
         ImagenData source;
-        MPI_Recv(&source, 1, MImagenData, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             2, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         ImagenData output;
-        MPI_Recv(&output, 1, MImagenData, 0, 5, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          0, 
+        /*tag*/             5, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+        
         kernelData kern;
-        MPI_Recv(&kern, 1, MKernel, 0, 8, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(
+        /*data*/            &kern, 
+        /*count*/           1, 
+        /*Datatype*/        MKernel, 
+        /*source*/          0, 
+        /*tag*/             8, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+
         convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+
+        MPI_Send(
+        /*data*/            &output, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*destination*/     0, 
+        /*tag*/             5, 
+        /*communicator*/    MPI_COMM_WORLD);
     }    
-    
     if (rank == 0)
     {
     
-    
     double t5=MPI_Wtime();
+    printf("%.6lf seconds elapsed after the convolution.\n", t5);
 
+    ImagenData source;
+    MPI_Recv(
+        /*data*/            &source, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          1, 
+        /*tag*/             2, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+    ImagenData outputR;
+    MPI_Recv(
+        /*data*/            &outputR, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          1, 
+        /*tag*/             1, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+    ImagenData outputG;
+    MPI_Recv(
+        /*data*/            &outputG, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          2, 
+        /*tag*/             3, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+    ImagenData outputB;
+    MPI_Recv(
+        /*data*/            &outputB, 
+        /*count*/           1, 
+        /*Datatype*/        MImagenData, 
+        /*source*/          3, 
+        /*tag*/             5, 
+        /*communicator*/    MPI_COMM_WORLD,
+        /*status*/          MPI_STATUS_IGNORE);
+
+    ImagenData output = joinOutputs(outputR, outputG, outputB);
     // Image writing
     if (saveFile(output, argv[3])!=0) {
         printf("Error saving the image\n");
@@ -421,19 +630,20 @@ int main(int argc, char **argv){
     }
 
     
-    double t6=MPI_Wtime();
-    clock_t finish=clock();
+    //double t6=MPI_Wtime();
+    //clock_t finish=clock();
 
     printf("Image: %s\n", argv[1]);
     printf("SizeX : %d\n", source->width);
-    printf("SizeY : %d\n", source->height);
+    printf("SizeY : %d\n", source->height);/*
     printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
     printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
     printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
     printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
     printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
-    printf("%.6lf seconds elapsed\n", t6-t1);
+    printf("%.6lf seconds elapsed\n", t6-t1);*/
     }
+
     MPI_Finalize();
     return 0;
 }
