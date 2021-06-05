@@ -17,6 +17,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <mpi.h>
+
 // Structure for storing the content of an image.
 struct imagenppm{
     int height;
@@ -155,8 +157,18 @@ int main(int argc, char **argv)
         int end = (h/(nworkers))*rank; //endpoint of the message
         int messageSize = h-start; //size of the message
 
+        int *sourceR, *sourceG, *sourceB;
+        sourceR = source->R;
+        sourceG = source->G;
+        sourceB = source->B;
+
+        int *outR, *outG, *outB;
+        outR = output->R;
+        outG = output->G;
+        outB = output->B;
+
         //convolve2D 호출
-        convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY,start,end);
+        convolve2D(sourceR, outR, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
 
 
     }
@@ -341,7 +353,7 @@ int saveFile(ImagenData  Img, char* name){
 // signed integer (32bit) version:
 ///////////////////////////////////////////////////////////////////////////////
 int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
-                float* kernel, int kernelSizeX, int kernelSizeY, int start,int end)
+                float* kernel, int kernelSizeX, int kernelSizeY)
 {
     int i, j, m, n;
     int *inPtr, *inPtr2, *outPtr;
@@ -365,7 +377,7 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     kPtr = kernel;
 
     // start convolution
-    for(i= start; i < end; ++i)                   // number of rows
+    for(i= 0; i < dataSizeY; ++i)                   // number of rows
     {
         // compute the range of convolution, the current row of kernel should be between these
         rowMax = i + kCenterY;
