@@ -133,22 +133,19 @@ int main(int argc, char **argv)
             int messageSize = h-start; //size of the message
             //printf("in the master ---- start : %d, end :%d\n", start, end);
             
-            int *rcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-            //printf("before rcv\n");
-            //get the message from aux(=worker=node=processor)
+            int *RrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
+            int *GrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
+            int *BrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
             
-            MPI_Recv(rcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
 
-            //printf("after rcv --- rank after `%d \n",rank);
-            int i;
-            // for (i=0; i<messageSize*w; i++){
-            //     if(i%w==0){
-            //         printf("\n");
-            //     }
-            //     rcvMessage[i];
-            // }
+            MPI_Recv(RrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
+            MPI_Recv(GrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
+            MPI_Recv(BrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
+
 
             mergeMessage(output->R, rcvMessage, start, end, w);
+            mergeMessage(output->G, rcvMessage, start, end, w);
+            mergeMessage(output->B, rcvMessage, start, end, w);
             
             printf("after merge\n");
 
@@ -182,29 +179,21 @@ int main(int argc, char **argv)
 
         int *outR, *outG, *outB;
         outR = (int*) calloc(messageSize*w,sizeof(int));
-        
         outG = (int*) calloc(messageSize*w,sizeof(int));
-
         outB = (int*) calloc(messageSize*w,sizeof(int));
-        printf("in the slave ---- source G: \n");
         
-        // printf("in the slave ---- cnt :%d\n", cnt );
-        printf("in the slave ---- start :%d , end :%d rank :%d \n", start, end, rank );
-        printf("in the slave ---- w: %d   h: %d\n", w, messageSize);
         //convolve2D 호출
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceG, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceB, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
-        // convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        // convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
-        printf("slave %d -- before send message\n", rank);
-
         MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-
+        MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
+        MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
+        
         printf("slave %d -- after send message\n", rank);
-        printf("inthe slave ----");
+        
     }
 
     gettimeofday(&tim, NULL);
