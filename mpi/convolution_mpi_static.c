@@ -8,7 +8,7 @@
 // This program allows you to apply the convolution to an image file with a * .ppm extension.
 // The program receives the file with the source image, the file with the kernel for the convolution and the path of the output file.
 // The 2D matrix of the image is represented by a 1D vector for each R, G and B channel. The convolution is applied for each channel separately.
-#include "mpi.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include "mpi.h"
+
 // Structure for storing the content of an image.
 struct imagenppm{
     int height;
@@ -46,182 +48,6 @@ int saveFile(ImagenData Img, char* name);
 
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
-
-
-int main(int argc, char **argv)
-{
-    int i=0,j=0,k=0;
-    int rank; //process rank
-    int size; //number of processes
-    int nworkers, aux, aux2;
-    MPI_Status status;
-    int w,h,imagesize=0;
-    int messageHeight;
-    double begin, end, end2; //time variables
-    
-    if(argc != 4)
-    {
-        printf("Usage: %s <image-file> <kernel-file> <result-file>\n", argv[0]);
-
-        printf("\n\nError, missing parameters:\n");
-        printf("format: image_file kernel_file result_file\n");
-        printf("- image_file : source image path (*.ppm)\n");
-        printf("- kernel_file: kernel path (text file with 1D kernel matrix)\n");
-        printf("- result_file: result image path (*.ppm)\n\n");
-        return -1;
-    }
-    struct timeval tim;
-    gettimeofday(&tim, NULL);
-    double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    //Read the source image.
-    ImagenData  source=NULL, output=NULL;
-    if ( (source=readImage(argv[1]))==NULL) {
-        return -1;
-    }
-
-    gettimeofday(&tim, NULL);
-    double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    // Duplicate the image in a new structure that will contain the output image
-    if ( (output=duplicateImageData(source)) == NULL) {
-        return -1;
-    }
-
-    gettimeofday(&tim, NULL);
-    double t3=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    //Kernel reading
-    kernelData kern=NULL;
-    if ( (kern = readKernel(argv[2]))==NULL) {
-        free(source);
-        free(output);
-        return -1;
-    }
-
-    //define image size;
-    w=source->width;
-    h=source->height;
-    imagesize=w*h;
-
-    printf("hihi1 \n");
-    //mpi determining
-    if (MPI_Init(&argc, &argv) != MPI_SUCCESS)
-    {
-        fprintf(stderr, "Error initilazing MPI\n");
-        return 100;
-    } //initialize MPI operations
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //get the rank
-    MPI_Comm_size(MPI_COMM_WORLD, &size); //get number of processes
-    
-    
-    printf("after Mpi init \n");
-    nworkers=size-1;
-    messageHeight= h/nworkers;
-
-
-    //master
-    if(rank==0)
-    {
-        begin = MPI_Wtime();
-
-        for(aux=1; aux<size; aux++)
-        {
-            int start = (aux-1)*messageHeight; //startpoitn of the message
-            int end = (h/(nworkers))*aux; //endpoint of the message
-            int messageSize = h-start; //size of the message
-            
-            int *rcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-
-            //get the message from aux(=worker=node=processor)
-            MPI_Recv(rcvMessage,messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD, &status);
-            
-            //join pixels
-            free(rcvMessage);
-
-            
-        }
-        end=MPI_Wtime();
-        //print pixel;s
-        end2 =MPI_Wtime();
-        
-        //get Results
-
-    }
-
-    //slave
-    else
-    {
-        int start = (aux-1)*messageHeight; //startpoitn of the message
-        int end = (h/(nworkers))*rank; //endpoint of the message
-        int messageSize = h-start; //size of the message
-
-        int *sourceR, *sourceG, *sourceB;
-        sourceR = source->R;
-        sourceG = source->G;
-        sourceB = source->B;
-
-        int *outR, *outG, *outB;
-        outR = output->R;
-        outG = output->G;
-        outB = output->B;
-
-        //convolve2D 호출
-        convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        printf("after convolve");
-
-    }
-
-
-
-
-
-
-
-
-
-    gettimeofday(&tim, NULL);
-    double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    // convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    // convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    // convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-
-    gettimeofday(&tim, NULL);
-    double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    // Image writing
-    if (saveFile(output, argv[3])!=0) {
-        printf("Error saving the image\n");
-        free(source);
-        free(output);
-        return -1;
-    }
-
-
-
-    gettimeofday(&tim, NULL);
-    double t6=tim.tv_sec+(tim.tv_usec/1000000.0);
-    clock_t finish=clock();
-
-
-
-
-
-    printf("Image: %s\n", argv[1]);
-    printf("SizeX : %d\n", source->width);
-    printf("SizeY : %d\n", source->height);
-    printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
-    printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
-    printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
-    printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
-    printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
-    printf("%.6lf seconds elapsed\n", t6-t1);
-
-    return 0;
-}
-
-
 ImagenData  readImage(char* name){
     FILE *fp;
     char c;
@@ -425,6 +251,86 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
             ++outPtr;                               // next output
         }
     }
+
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    int i=0,j=0,k=0;
+
+    if(argc != 4)
+    {
+        printf("Usage: %s <image-file> <kernel-file> <result-file>\n", argv[0]);
+
+        printf("\n\nError, missing parameters:\n");
+        printf("format: image_file kernel_file result_file\n");
+        printf("- image_file : source image path (*.ppm)\n");
+        printf("- kernel_file: kernel path (text file with 1D kernel matrix)\n");
+        printf("- result_file: result image path (*.ppm)\n\n");
+        return -1;
+    }
+
+    struct timeval tim;
+    gettimeofday(&tim, NULL);
+    double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    //Read the source image.
+    ImagenData  source=NULL, output=NULL;
+    if ( (source=readImage(argv[1]))==NULL) {
+        return -1;
+    }
+
+    gettimeofday(&tim, NULL);
+    double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    // Duplicate the image in a new structure that will contain the output image
+    if ( (output=duplicateImageData(source)) == NULL) {
+        return -1;
+    }
+
+    gettimeofday(&tim, NULL);
+    double t3=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    //Kernel reading
+    kernelData kern=NULL;
+    if ( (kern = readKernel(argv[2]))==NULL) {
+        free(source);
+        free(output);
+        return -1;
+    }
+
+    gettimeofday(&tim, NULL);
+    double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+
+    gettimeofday(&tim, NULL);
+    double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    // Image writing
+    if (saveFile(output, argv[3])!=0) {
+        printf("Error saving the image\n");
+        free(source);
+        free(output);
+        return -1;
+    }
+
+    gettimeofday(&tim, NULL);
+    double t6=tim.tv_sec+(tim.tv_usec/1000000.0);
+    clock_t finish=clock();
+
+    printf("Image: %s\n", argv[1]);
+    printf("SizeX : %d\n", source->width);
+    printf("SizeY : %d\n", source->height);
+    printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
+    printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
+    printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
+    printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
+    printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
+    printf("%.6lf seconds elapsed\n", t6-t1);
 
     return 0;
 }
