@@ -131,22 +131,22 @@ int main(int argc, char **argv)
             int start = (aux-1)*messageHeight; //startpoitn of the message
             int end = (h/(nworkers))*aux; //endpoint of the message
             int messageSize = h-start; //size of the message
-            printf("in the master ---- start : %d, end :%d\n", start, end);
+            //printf("in the master ---- start : %d, end :%d\n", start, end);
             
             int *rcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-            printf("before rcv\n");
+            //printf("before rcv\n");
             //get the message from aux(=worker=node=processor)
             
             MPI_Recv(rcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
 
-            printf("after rcv --- rank after %d \n",rank);
-
-            for (int i=0; i<messageSize*w; i++){
-                if(i%w==0){
-                    printf("\n");
-                }
-                rcvMessage[i];
-            }
+            //printf("after rcv --- rank after `%d \n",rank);
+            int i;
+            // for (i=0; i<messageSize*w; i++){
+            //     if(i%w==0){
+            //         printf("\n");
+            //     }
+            //     rcvMessage[i];
+            // }
 
             mergeMessage(output->R, rcvMessage, start, end, w);
             
@@ -183,6 +183,9 @@ int main(int argc, char **argv)
         int *outR, *outG, *outB;
         outR = (int*) calloc(messageSize*w,sizeof(int));
         
+        outG = (int*) calloc(messageSize*w,sizeof(int));
+
+        outB = (int*) calloc(messageSize*w,sizeof(int));
         printf("in the slave ---- source G: \n");
         
         // printf("in the slave ---- cnt :%d\n", cnt );
@@ -190,6 +193,9 @@ int main(int argc, char **argv)
         printf("in the slave ---- w: %d   h: %d\n", w, messageSize);
         //convolve2D 호출
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(sourceG, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(sourceB, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        
         // convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         // convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
