@@ -161,7 +161,7 @@ int main(int argc, char **argv)
         free(source);
         free(output);
         return -1;
-    }
+        }
         end2 =MPI_Wtime();
         
         //get Results
@@ -175,11 +175,6 @@ int main(int argc, char **argv)
     // printf("%.6lf seconds elapsed\n", t6-t1);
         printf("%.6lf second elapsed for convolution", end-begin);
         printf("%.6lf second elasped for printing",end2-end);
-
-
-
-
-
 
     }
 
