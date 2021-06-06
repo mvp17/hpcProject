@@ -1,0 +1,10 @@
+after merge
+after merge
+after merge
+Image: ./images/1017KB.ppm
+SizeX : 292
+SizeY : 320
+0.081496 seconds elapsed for Reading image file.
+0.000439 seconds elapsed for copying image structure.
+0.739831 seconds elapsed for convolution.
+0.834651 seconds elapsed for with print.
