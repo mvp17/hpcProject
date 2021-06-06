@@ -169,12 +169,12 @@ int main(int argc, char **argv)
 
         printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
         printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
-        printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
+      //  printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
     // printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
     // printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
     // printf("%.6lf seconds elapsed\n", t6-t1);
         printf("%.6lf second elapsed for convolution", end-begin);
-        printf("%.6lf second elasped for printing",end2-end);-
+        printf("%.6lf second elasped for printing",end2-end);
 
 
 
