@@ -105,7 +105,10 @@ int main(int argc, char **argv)
     h=source->height;
     imagesize=w*h;
 
-    printf("source w:%d  h:%d\n", w,h);
+
+    printf("Image: %s\n", argv[1]);
+    printf("SizeX : %d\n", source->width);
+    printf("SizeY : %d\n", source->height);
     //mpi determining
     if (MPI_Init(&argc, &argv) != MPI_SUCCESS)
     {
@@ -119,7 +122,6 @@ int main(int argc, char **argv)
     
     nworkers=size-1;
     messageHeight= h/nworkers;
-    printf("after Mpi init    nworkers :%d,  messageHeight : %d\n",nworkers, messageHeight );
 
     //master
     if(rank==0)
@@ -131,7 +133,6 @@ int main(int argc, char **argv)
             int start = (aux-1)*messageHeight; //startpoitn of the message
             int end = (h/(nworkers))*aux; //endpoint of the message
             int messageSize = h-start; //size of the message
-            //printf("in the master ---- start : %d, end :%d\n", start, end);
             
             int *RrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
             int *GrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
@@ -143,25 +144,42 @@ int main(int argc, char **argv)
             MPI_Recv(BrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
 
 
-            mergeMessage(output->R, rcvMessage, start, end, w);
-            mergeMessage(output->G, rcvMessage, start, end, w);
-            mergeMessage(output->B, rcvMessage, start, end, w);
+            mergeMessage(output->R, RrcvMessage, start, end, w);
+            mergeMessage(output->G, GrcvMessage, start, end, w);
+            mergeMessage(output->B, BrcvMessage, start, end, w);
             
-            printf("after merge\n");
-
-            
-            //join pixels
-            free(rcvMessage);
-
-
-            printf("after free\n");
+            free(RrcvMessage);
+            free(GrcvMessage);
+            free(BrcvMessage);
 
         }
         end=MPI_Wtime();
-        //print pixel;s
+        
+         // Image writing
+        if (saveFile(output, argv[3])!=0) {
+        printf("Error saving the image\n");
+        free(source);
+        free(output);
+        return -1;
+    }
         end2 =MPI_Wtime();
         
         //get Results
+
+
+        printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
+        printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
+        printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
+    // printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
+    // printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
+    // printf("%.6lf seconds elapsed\n", t6-t1);
+        printf("%.6lf second elapsed for convolution", end-begin);
+        printf("%.6lf second elasped for printing",end2-end);-
+
+
+
+
+
 
     }
 
@@ -192,7 +210,6 @@ int main(int argc, char **argv)
         MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         
-        printf("slave %d -- after send message\n", rank);
         
     }
 
@@ -202,16 +219,6 @@ int main(int argc, char **argv)
     gettimeofday(&tim, NULL);
     double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-    // Image writing
-    if (saveFile(output, argv[3])!=0) {
-        printf("Error saving the image\n");
-        free(source);
-        free(output);
-        return -1;
-    }
-
-
-
     gettimeofday(&tim, NULL);
     double t6=tim.tv_sec+(tim.tv_usec/1000000.0);
     clock_t finish=clock();
@@ -220,15 +227,12 @@ int main(int argc, char **argv)
 
 
 
-    printf("Image: %s\n", argv[1]);
-    printf("SizeX : %d\n", source->width);
-    printf("SizeY : %d\n", source->height);
-    printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
-    printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
-    printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
-    printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
-    printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
-    printf("%.6lf seconds elapsed\n", t6-t1);
+    // printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
+    // printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
+    // printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
+    // printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
+    // printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
+    // printf("%.6lf seconds elapsed\n", t6-t1);
 
     // MPI_Finalize();
     return 0;
@@ -438,7 +442,6 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
             ++outPtr;                               // next output
         }
     }
-    printf("end of the convol\n");
     return 0;
 }
 void mergeMessage(int *pixels, int *message, int start, int end, int w)
