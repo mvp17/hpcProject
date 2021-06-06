@@ -227,6 +227,7 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
                         // check the boundary of array
                         if(n <= colMax && n > colMin)
                             sum += *(inPtr - n) * *kPtr;
+                            
 
                         ++kPtr;                     // next kernel
                     }
@@ -303,8 +304,8 @@ int main(int argc, char **argv)
     double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
 
     convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    // convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
+    // convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
 
     gettimeofday(&tim, NULL);
     double t5=tim.tv_sec+(tim.tv_usec/1000000.0);

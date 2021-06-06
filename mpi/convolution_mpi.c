@@ -43,6 +43,7 @@ kernelData readKernel(char* name);
 ImagenData duplicateImageData(ImagenData src);
 int convolve2D(int*, int*, int, int, float*, int, int);
 int saveFile(ImagenData Img, char* name);
+void mergeMessage(int *pixels, int *message, int start, int end, int w);
 
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
@@ -104,7 +105,7 @@ int main(int argc, char **argv)
     h=source->height;
     imagesize=w*h;
 
-    printf("hihi1 \n");
+    printf("source w:%d  h:%d\n", w,h);
     //mpi determining
     if (MPI_Init(&argc, &argv) != MPI_SUCCESS)
     {
@@ -115,10 +116,10 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &size); //get number of processes
     
     
-    printf("after Mpi init \n");
+    
     nworkers=size-1;
     messageHeight= h/nworkers;
-
+    printf("after Mpi init    nworkers :%d,  messageHeight : %d\n",nworkers, messageHeight );
 
     //master
     if(rank==0)
@@ -130,16 +131,34 @@ int main(int argc, char **argv)
             int start = (aux-1)*messageHeight; //startpoitn of the message
             int end = (h/(nworkers))*aux; //endpoint of the message
             int messageSize = h-start; //size of the message
+            printf("in the master ---- start : %d, end :%d\n", start, end);
             
             int *rcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-
+            printf("before rcv\n");
             //get the message from aux(=worker=node=processor)
-            MPI_Recv(rcvMessage,messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD, &status);
+            
+            MPI_Recv(rcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
+
+            printf("after rcv --- rank after %d \n",rank);
+
+            for (int i=0; i<messageSize*w; i++){
+                if(i%w==0){
+                    printf("\n");
+                }
+                rcvMessage[i];
+            }
+
+            mergeMessage(output->R, rcvMessage, start, end, w);
+            
+            printf("after merge\n");
+
             
             //join pixels
             free(rcvMessage);
 
-            
+
+            printf("after free\n");
+
         }
         end=MPI_Wtime();
         //print pixel;s
@@ -152,7 +171,7 @@ int main(int argc, char **argv)
     //slave
     else
     {
-        int start = (aux-1)*messageHeight; //startpoitn of the message
+        int start = (rank-1)*messageHeight; //startpoitn of the message
         int end = (h/(nworkers))*rank; //endpoint of the message
         int messageSize = h-start; //size of the message
 
@@ -162,30 +181,28 @@ int main(int argc, char **argv)
         sourceB = source->B;
 
         int *outR, *outG, *outB;
-        outR = output->R;
-        outG = output->G;
-        outB = output->B;
-
+        outR = (int*) calloc(messageSize*w,sizeof(int));
+        
+        printf("in the slave ---- source G: \n");
+        
+        // printf("in the slave ---- cnt :%d\n", cnt );
+        printf("in the slave ---- start :%d , end :%d rank :%d \n", start, end, rank );
+        printf("in the slave ---- w: %d   h: %d\n", w, messageSize);
         //convolve2D 호출
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        printf("after convolve");
+        // convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        // convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        
+        printf("slave %d -- before send message\n", rank);
 
+        MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
+
+        printf("slave %d -- after send message\n", rank);
+        printf("inthe slave ----");
     }
-
-
-
-
-
-
-
-
 
     gettimeofday(&tim, NULL);
     double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    // convolve2D(source->R, output->R, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    // convolve2D(source->G, output->G, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
-    // convolve2D(source->B, output->B, source->width, source->height, kern->vkern, kern->kernelX, kern->kernelY);
 
     gettimeofday(&tim, NULL);
     double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -218,6 +235,7 @@ int main(int argc, char **argv)
     printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
     printf("%.6lf seconds elapsed\n", t6-t1);
 
+    // MPI_Finalize();
     return 0;
 }
 
@@ -425,6 +443,23 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
             ++outPtr;                               // next output
         }
     }
-
+    printf("end of the convol\n");
     return 0;
+}
+void mergeMessage(int *pixels, int *message, int start, int end, int w)
+{
+    // calculating initial and final position of the received fragment
+    start = start * w;
+    end = end * w;
+
+    // position in the final image array
+    int p;
+
+    //position in the received fragment array
+    int pos = 0;
+
+    for (p = start; p < end; p++, pos++)
+    {
+        pixels[p] = message[pos];
+    }
 }
