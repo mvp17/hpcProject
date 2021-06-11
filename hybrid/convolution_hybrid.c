@@ -201,7 +201,7 @@ int main(int argc, char **argv)
         outG = (int*) calloc(messageSize*w,sizeof(int));
         outB = (int*) calloc(messageSize*w,sizeof(int));
         
-        //convolve2D 호출
+        
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
@@ -210,7 +210,6 @@ int main(int argc, char **argv)
         MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-        
         
     }
 
