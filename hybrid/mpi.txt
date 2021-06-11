@@ -1,7 +1,7 @@
 Image: ../images/1017KB.ppm
 SizeX : 292
 SizeY : 320
-0.125336 seconds elapsed for Reading image file.
-0.000557 seconds elapsed for copying image structure.
-0.867513 seconds elapsed for convolution.
-0.934726 seconds elapsed for with print.
+0.053018 seconds elapsed for Reading image file.
+0.000360 seconds elapsed for copying image structure.
+0.833039 seconds elapsed for convolution.
+0.917687 seconds elapsed for with print.
