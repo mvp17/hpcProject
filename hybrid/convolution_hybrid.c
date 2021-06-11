@@ -17,7 +17,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <omp.h>
-
 // Structure for storing the content of an image.
 struct imagenppm{
     int height;
@@ -50,6 +49,7 @@ void mergeMessage(int *pixels, int *message, int start, int end, int w);
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
 
+int cnt =0;
 
 int main(int argc, char **argv)
 {
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
             mergeMessage(output->G, GrcvMessage, start, end, w);
             mergeMessage(output->B, BrcvMessage, start, end, w);
             
-            printf("after merge\n");
+            //printf("after merge\n");
 
            
 
@@ -201,15 +201,15 @@ int main(int argc, char **argv)
         outG = (int*) calloc(messageSize*w,sizeof(int));
         outB = (int*) calloc(messageSize*w,sizeof(int));
         
-        
+        //convolve2D 호출
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
-        
         MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
+        
         
     }
 
@@ -385,10 +385,9 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     kPtr = kernel;
 
     // start convolution
-#pragma omp parallel shared(inPtr,inPtr2,outPtr,kPtr,kCenterX,kCenterY) private(i,j,m,n,rowMax,rowMin,colMin,colMax,sum)
+    #pragma omp parallel shared(outPtr,sum) num_threads(4)
     {
-        // static, dynamic, guided. Number of threads: 2 or 4
-        #pragma omp for schedule(guided,4) num_threads(2)
+        #pragma omp for schedule(static,5)
         for(i= 0; i < dataSizeY; ++i)                   // number of rows
         {
             // compute the range of convolution, the current row of kernel should be between these
@@ -435,11 +434,15 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
                 kPtr = kernel;                          // reset kernel to (0,0)
                 inPtr = ++inPtr2;                       // next input
                 ++outPtr;                               // next output
+                
             }
+           
         }
         
+        //printf("cnt :%d , thread num :%d \n", cnt, omp_get_num_threads());
     }
-    return 0;
+        return 0;
+    
 }
 void mergeMessage(int *pixels, int *message, int start, int end, int w)
 {

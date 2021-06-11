@@ -1,0 +1,21 @@
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :1 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :2 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+cnt :3 , thread num :4 
+Image: ../images/1017KB.ppm
+SizeX : 292
+SizeY : 320
+0.047868 seconds elapsed for Reading image file.
+0.000428 seconds elapsed for copying image structure.
+0.001666 seconds elapsed for Reading kernel matrix.
+0.034546 seconds elapsed for make the convolution.
+0.064581 seconds elapsed for writing the resulting image.
+0.149089 seconds elapsed
