@@ -47,6 +47,8 @@ int convolve2D(int*, int*, int, int, float*, int, int);
 int saveFile(ImagenData Img, char* name);
 void mergeMessage(int *pixels, int *message, int start, int end, int w);
 
+int cnt =0;
+
 // This Function allows us to read a ppm file and place the information: encoding, size, RGB, etc. of the image in a structure.
 // The value of each RGB pixel in the 2D image is saved and represented by 1D vectors for each channel.
 
@@ -202,8 +204,11 @@ int main(int argc, char **argv)
         outB = (int*) calloc(messageSize*w,sizeof(int));
         
         //convolve2D 호출
+         cnt++;
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+         cnt++;
         convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+         cnt++;
         convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
         
@@ -385,16 +390,17 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
     outPtr = out;
     kPtr = kernel;
 
-    // start convolution
-#pragma omp parallel shared(inPtr,inPtr2,outPtr,kPtr,kCenterX,kCenterY) private(i,j,m,n,rowMax,rowMin,colMin,colMax,sum)
+
+    #pragma omp parallel shared(inPtr,inPtr2,outPtr,kPtr,kCenterX,kCenterY) private(i,j,m,n,rowMax,rowMin,colMin,colMax,sum) num_threads(4)
     {
-        // static, dynamic, guided. Number of threads: 2 or 4
-        #pragma omp for schedule(guided,4) num_threads(2)
+        #pragma omp for schedule(static) 
+        // start convolution
         for(i= 0; i < dataSizeY; ++i)                   // number of rows
         {
             // compute the range of convolution, the current row of kernel should be between these
             rowMax = i + kCenterY;
             rowMin = i - dataSizeY + kCenterY;
+
             for(j = 0; j < dataSizeX; ++j)              // number of columns
             {
                 // compute the range of convolution, the current column of kernel should be between these
@@ -438,10 +444,12 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
                 ++outPtr;                               // next output
             }
         }
-        
+        printf("cnt :%d , thread num :%d \n", cnt, omp_get_num_threads());
+
     }
     return 0;
 }
+
 void mergeMessage(int *pixels, int *message, int start, int end, int w)
 {
     // calculating initial and final position of the received fragment

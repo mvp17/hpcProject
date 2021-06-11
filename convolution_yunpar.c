@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include <omp.h>
 // Structure for storing the content of an image.
 struct imagenppm{
     int height;
