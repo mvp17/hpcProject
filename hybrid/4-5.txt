@@ -1,0 +1,7 @@
+Image: /share/apps/files/convolution/images/im01.ppm
+SizeX : 292
+SizeY : 320
+0.036393 seconds elapsed for Reading image file.
+0.000573 seconds elapsed for copying image structure.
+0.246008 seconds elapsed for convolution.
+0.287969 seconds elapsed for with print.
