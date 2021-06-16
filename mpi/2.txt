@@ -1,0 +1,9 @@
+slave time : 1     4.220147 
+Image: images/1017KB.ppm
+SizeX : 292
+SizeY : 320
+0.071551 seconds elapsed for Reading image file.
+0.000460 seconds elapsed for copying image structure.
+4.287034 seconds elapsed for convolution.
+4.365763 seconds elapsed .
+master time : 0     4.214684 

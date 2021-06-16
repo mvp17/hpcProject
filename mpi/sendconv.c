@@ -59,6 +59,7 @@ int main(int argc, char **argv)
     int w,h,imagesize=0;
     int messageHeight;
     double begin, end, end2; //time variables
+    double ss, se, ms, me;
     
     
     //mpi determining
@@ -127,7 +128,7 @@ int main(int argc, char **argv)
     //master
     if(rank==0)
     {
-        
+        ms = MPI_Wtime();
         for(aux=1; aux<size; aux++)
         {
             int start = (aux-1)*messageHeight; //startpoitn of the message
@@ -153,8 +154,10 @@ int main(int argc, char **argv)
             free(RrcvMessage);
             free(GrcvMessage);
             free(BrcvMessage);
+            
 
         }
+        me  = MPI_Wtime();
         end=MPI_Wtime();
         //print pixel;s
          // Image writing
@@ -175,6 +178,10 @@ int main(int argc, char **argv)
         printf("%.6lf seconds elapsed for convolution.\n", end-begin);
         printf("%.6lf seconds elapsed .\n", end2-begin);
 
+        printf("master time : %d     %.6lf \n", rank, me-ms);
+
+
+
         //get Results
 
     }
@@ -182,15 +189,12 @@ int main(int argc, char **argv)
     //slave
     else
     {
-        
+        ss = MPI_Wtime();
         int start = (rank-1)*messageHeight; //startpoitn of the message
         int end = (h/(nworkers))*rank; //endpoint of the message
         int messageSize = h-start; //size of the message
 
-        int *sourceR, *sourceG, *sourceB;
-        sourceR = source->R;
-        sourceG = source->G;
-        sourceB = source->B;
+        
 
         int *outR, *outG, *outB;
         outR = (int*) calloc(messageSize*w,sizeof(int));
@@ -199,15 +203,16 @@ int main(int argc, char **argv)
         
 
         //convolve2D 호출
-        convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(source->R, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(source->G, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        convolve2D(source->B, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         
 
         MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-
+        se=MPI_Wtime();
+        printf("slave time : %d     %.6lf \n", rank, se-ss);
     }
 
     gettimeofday(&tim, NULL);
