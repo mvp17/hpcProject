@@ -1,9 +1,0 @@
-Image: images/1017KB.ppm
-SizeX : 292
-SizeY : 320
-0.066707 seconds elapsed for Reading image file.
-0.000340 seconds elapsed for copying image structure.
-0.000082 seconds elapsed for Reading kernel matrix.
-1.119498 seconds elapsed for make the convolution.
-0.056550 seconds elapsed for writing the resulting image.
-1.243180 seconds elapsed

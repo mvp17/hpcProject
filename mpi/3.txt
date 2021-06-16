@@ -1,7 +1,0 @@
-Image: images/1017KB.ppm
-SizeX : 292
-SizeY : 320
-0.064960 seconds elapsed for Reading image file.
-0.000393 seconds elapsed for copying image structure.
-1.709833 seconds elapsed for convolution.
-1.765866 seconds elapsed for with print.
