@@ -444,3 +444,5 @@ void mergeMessage(int *pixels, int *message, int start, int end, int w)
         pixels[p] = message[pos];
     }
 }
+
+//checkcheck
