@@ -71,6 +71,8 @@ int main(int argc, char **argv)
         printf("- image_file : source image path (*.ppm)\n");
         printf("- kernel_file: kernel path (text file with 1D kernel matrix)\n");
         printf("- result_file: result image path (*.ppm)\n\n");
+        //check
+        //MPI_Finalize();
         return -1;
     }
     struct timeval tim;
@@ -115,7 +117,8 @@ int main(int argc, char **argv)
     } //initialize MPI operations
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); //get the rank
     MPI_Comm_size(MPI_COMM_WORLD, &size); //get number of processes
-    
+    //check
+    //MPI_Get_processor_name(hostname, &namelen);
     
     
     nworkers=size-1;
@@ -149,16 +152,11 @@ int main(int argc, char **argv)
             
             //printf("after merge\n");
 
-           
-
-
             //join pixels
             free(RrcvMessage);
             free(GrcvMessage);
             free(BrcvMessage);
 
-
-          
         }
         end=MPI_Wtime();
         //print pixel;s
@@ -205,6 +203,7 @@ int main(int argc, char **argv)
         convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
         convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
+        
         
         MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
         MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
