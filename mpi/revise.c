@@ -52,37 +52,30 @@ void mergeMessage(int *pixels, int *message, int start, int end, int w);
 int main(int argc, char **argv)
 {
     int i=0,j=0,k=0;
-    int rank; //process rank
-    int size; //number of processes
-    int nworkers, aux, aux2;
+    double starttime, endtime;
+
+    // Initialize the MPI environment
+    MPI_Init(&argc,&argv);
     MPI_Status status;
-    int w,h,imagesize=0;
-    int messageHeight;
-    double begin, end, end2; //time variables
-    
-    
-    //mpi determining
-    if (MPI_Init(&argc, &argv) != MPI_SUCCESS)
-    {
-        fprintf(stderr, "Error initilazing MPI\n");
-        return 100;
-    } //initialize MPI operations
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //get the rank
-    MPI_Comm_size(MPI_COMM_WORLD, &size); //get number of processes
-    
+    MPI_Request send_request;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
     if(argc != 4)
     {
-        printf("Usage: %s <image-file> <kernel-file> <result-file>\n", argv[0]);
-
+        printf("Usage: %s <image-file> <kernel-file> <result-file> <partitions>\n", argv[0]);
         printf("\n\nError, missing parameters:\n");
         printf("format: image_file kernel_file result_file\n");
         printf("- image_file : source image path (*.ppm)\n");
         printf("- kernel_file: kernel path (text file with 1D kernel matrix)\n");
-        printf("- result_file: result image path (*.ppm)\n\n");
+        printf("- result_file: result image path (*.ppm)\n");
         return -1;
     }
-
-    begin = MPI_Wtime();
+    starttime=MPI_Wtime();
 
     struct timeval tim;
     gettimeofday(&tim, NULL);
@@ -113,119 +106,87 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    //define image size;
-    w=source->width;
-    h=source->height;
-    imagesize=w*h;
+    gettimeofday(&tim, NULL);
+    double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-    
-    
-    
-    nworkers=size-1;
-    messageHeight= h/nworkers;
+    // MPI
+    //Divide Load
+    int *sendcounts = malloc(sizeof(int)*size);
+    int *displacement = malloc(sizeof(int)*size);
 
-    //master
-    if(rank==0)
+    int sizePerCore = (source->width*source->height)/size;
+    int height = sizePerCore/source->width;
+
+    for (i = 0; i < size-1; i++)
     {
-        
-        for(aux=1; aux<size; aux++)
-        {
-            int start = (aux-1)*messageHeight; //startpoitn of the message
-            int end = (h/(nworkers))*aux; //endpoint of the message
-            int messageSize = h-start; //size of the message
-            //printf("in the master ---- start : %d, end :%d\n", start, end);
-            
-            int *RrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-            int *GrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
-            int *BrcvMessage = (int*) calloc(messageSize*w,sizeof(int));
+        sendcounts[i] = sizePerCore;
+        displacement[i] = i * sizePerCore;
+    }
 
-            
-            MPI_Recv(RrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
-            MPI_Recv(GrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
-            MPI_Recv(BrcvMessage, messageSize*w, MPI_INT, aux, MPI_ANY_TAG,MPI_COMM_WORLD,&status);
+    sendcounts[size-1] = (source->width*source->height) % size == 0 ? sizePerCore : sizePerCore + 1;
+    displacement[size-1] = (size-1) * sizePerCore;
+
+    // Scatter
+    int *receiveR = malloc(sizeof(int)*(sizePerCore*2));
+    int *receiveG = malloc(sizeof(int)*(sizePerCore*2));
+    int *receiveB = malloc(sizeof(int)*(sizePerCore*2));
+    int *outputR = malloc(sizeof(int)*(sizePerCore*20));
+    int *outputG = malloc(sizeof(int)*(sizePerCore*20));
+    int *outputB = malloc(sizeof(int)*(sizePerCore*20));
+
+    //https://mpitutorial.com/tutorials/mpi-scatter-gather-and-allgather/
 
 
-            mergeMessage(output->R, RrcvMessage, start, end, w);
-            mergeMessage(output->G, GrcvMessage, start, end, w);
-            mergeMessage(output->B, BrcvMessage, start, end, w);
+    MPI_Scatterv(source->R,sendcounts,displacement,MPI_INT,receiveR,sendcounts[rank],MPI_INT,0,MPI_COMM_WORLD);
+    MPI_Scatterv(source->G,sendcounts,displacement,MPI_INT,receiveG,sendcounts[rank],MPI_INT,0,MPI_COMM_WORLD);
+    MPI_Scatterv(source->B,sendcounts,displacement,MPI_INT,receiveB,sendcounts[rank],MPI_INT,0,MPI_COMM_WORLD);
 
-            //join pixels
-            free(RrcvMessage);
-            free(GrcvMessage);
-            free(BrcvMessage);
+    // Convolve for each node
+    convolve2D(receiveR, outputR, source->width, height, kern->vkern, kern->kernelX, kern->kernelY);
+    convolve2D(receiveG, outputG, source->width, height, kern->vkern, kern->kernelX, kern->kernelY);
+    convolve2D(receiveB, outputB, source->width, height, kern->vkern, kern->kernelX, kern->kernelY);
 
+
+    // Gather
+    MPI_Gatherv(outputR, sendcounts[rank], MPI_INT, output->R, sendcounts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(outputG, sendcounts[rank], MPI_INT, output->G, sendcounts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(outputB, sendcounts[rank], MPI_INT, output->B, sendcounts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
+
+
+    if(rank==0){
+
+        gettimeofday(&tim, NULL);
+        double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+        // Image writing
+        if (saveFile(output, argv[3])!=0) {
+            printf("Error saving the image\n");
+            //free(source);
+            //free(output);
+            return -1;
         }
-        end=MPI_Wtime();
-        //print pixel;s
-         // Image writing
-            if (saveFile(output, argv[3])!=0) {
-                printf("Error saving the image\n");
-                free(source);
-                free(output);
-                return -1;
-            }
-       
 
-        end2 =MPI_Wtime();
-         printf("Image: %s\n", argv[1]);
+        gettimeofday(&tim, NULL);
+        double t6=tim.tv_sec+(tim.tv_usec/1000000.0);
+        clock_t finish=clock();
+        endtime = MPI_Wtime();
+        
+        printf("Image: %s\n", argv[1]);
         printf("SizeX : %d\n", source->width);
         printf("SizeY : %d\n", source->height);
         printf("%.6lf seconds elapsed for Reading image file.\n", t2-t1);
         printf("%.6lf seconds elapsed for copying image structure.\n", t3-t2);
-        printf("%.6lf seconds elapsed for convolution.\n", end-begin);
-        printf("%.6lf seconds elapsed .\n", end2-begin);
-
-        //get Results
-
+        printf("%.6lf seconds elapsed for Reading kernel matrix.\n", t4-t3);
+        printf("%.6lf seconds elapsed for make the convolution.\n", t5-t4);
+        printf("%.6lf seconds elapsed for writing the resulting image.\n", t6-t5);
+        printf("%.6lf seconds elapsed\n", endtime-starttime);
+        
     }
 
-    //slave
-    else
-    {
-        
-        int start = (rank-1)*messageHeight; //startpoitn of the message
-        int end = (h/(nworkers))*rank; //endpoint of the message
-        int messageSize = h-start; //size of the message
-
-        int *sourceR, *sourceG, *sourceB;
-        sourceR = source->R;
-        sourceG = source->G;
-        sourceB = source->B;
-
-        int *outR, *outG, *outB;
-        outR = (int*) calloc(messageSize*w,sizeof(int));
-        outG = (int*) calloc(messageSize*w,sizeof(int));
-        outB = (int*) calloc(messageSize*w,sizeof(int));
-        
-
-        //convolve2D 호출
-        convolve2D(sourceR, outR, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceG, outG, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        convolve2D(sourceB, outB, w, messageSize, kern->vkern, kern->kernelX, kern->kernelY);
-        
-
-        MPI_Send(outR, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-        MPI_Send(outG, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-        MPI_Send(outB, messageSize*w, MPI_INT, 0, rank, MPI_COMM_WORLD);
-
-    }
-
-    gettimeofday(&tim, NULL);
-    double t4=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    gettimeofday(&tim, NULL);
-    double t5=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-    gettimeofday(&tim, NULL);
-    double t6=tim.tv_sec+(tim.tv_usec/1000000.0);
-    clock_t finish=clock();
-
-
-     MPI_Finalize();
+    // Finalize MPI
+    MPI_Finalize();
     return 0;
 }
-
-
 ImagenData  readImage(char* name){
     FILE *fp;
     char c;
@@ -249,19 +210,21 @@ ImagenData  readImage(char* name){
         Img->comment = calloc(strlen(comment),sizeof(char));
         strcpy(Img->comment,comment);
         // Read and save the width, height and maximum color
-        fscanf(fp,"%d %d %d",&Img->width,&Img->height,&Img->maxcolor);
+        fscanf(fp,"%d %d %d",&Img->width,&Img->height,&Img->maxcolor); // <width, height, maxcolor>
         // Memory is reserved in R, G and B according to width and height
         // And the values of R, G and B of the file are assigned
         if ((Img->R=calloc(Img->width*Img->height,sizeof(int))) == NULL) {return NULL;}
         if ((Img->G=calloc(Img->width*Img->height,sizeof(int))) == NULL) {return NULL;}
         if ((Img->B=calloc(Img->width*Img->height,sizeof(int))) == NULL) {return NULL;}
         for(i=0;i<Img->width*Img->height;i++){
-            fscanf(fp,"%d %d %d ",&Img->R[i],&Img->G[i],&Img->B[i]);
+            fscanf(fp,"%d %d %d ",&Img->R[i],&Img->G[i],&Img->B[i]); // <0, 0, 0> => <R, G, B>
         }
         fclose(fp);
     }
+
     return Img;
 }
+
 
 // This function allows us to read a kernel from a file, the kernel is represented by a 1D vector.
 kernelData readKernel(char* name){
@@ -448,5 +411,3 @@ void mergeMessage(int *pixels, int *message, int start, int end, int w)
         pixels[p] = message[pos];
     }
 }
-
-//checkcheck
