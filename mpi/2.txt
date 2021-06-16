@@ -1,0 +1,2 @@
+[mpiexec@yun-VirtualBox] Sending Ctrl-C to processes as requested
+[mpiexec@yun-VirtualBox] Press Ctrl-C again to force abort
